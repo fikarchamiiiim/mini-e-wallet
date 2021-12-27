@@ -10,7 +10,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 from user_app.models import UserProfile
 from wallet_app.models import Wallet, WalletTransaction
-from .serializers import UserProfileSerializers, WalletSerializers, WalletTransactionSerializers
+from .serializers import UserProfileSerializers, WalletTransactionSerializers, DisableWalletSerializers
 
 # Create your views here.
 class CreateUser(generics.GenericAPIView):
@@ -110,6 +110,31 @@ class EnableWallet(generics.GenericAPIView):
                 }
             }
             return Response(response, status=status.HTTP_201_CREATED)
+    
+    def patch(self, request, *args, **kwargs):
+        token = request.META['HTTP_AUTHORIZATION'].split(' ')[1]
+        user = Token.objects.get(key=token).user
+        wallet = Wallet.objects.get(owned_by=user)
+        serializer = DisableWalletSerializers(data=request.data)
+        if serializer.is_valid():
+            wallet.status = serializer.data['status']
+            wallet.save()
+        
+            response = {
+                "status": "success",
+                "data": {
+                    "wallet": {
+                    "id": str(wallet.id),
+                    "owned_by": str(wallet.owned_by),
+                    "status": "enabled" if wallet.status == True else "disabled",
+                    "enabled_at": wallet.enable_at,
+                    "balance": wallet.balance
+                    }
+                }
+            }
+
+            return Response(response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DepositMoney(generics.GenericAPIView):
@@ -154,7 +179,7 @@ class WithdrawMoney(generics.GenericAPIView):
         user = Token.objects.get(key=token).user
         wallet = Wallet.objects.get(owned_by=user)
         serializer = WalletTransactionSerializers(data=request.data)
-        if wallet.status == True and serializer.is_valid():
+        if serializer.is_valid() and wallet.status == True:
             wallet.balance -= serializer.data['ammount']
             wallet.save()
             wallet_transaction = WalletTransaction.objects.create(user=user, 

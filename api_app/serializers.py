@@ -20,3 +20,9 @@ class WalletTransactionSerializers(serializers.ModelSerializer):
     class Meta:
         model = WalletTransaction
         fields = ["ammount", "reference_id"]
+
+class DisableWalletSerializers(serializers.ModelSerializer):
+
+    class Meta:
+        model = Wallet
+        fields = ['status']
